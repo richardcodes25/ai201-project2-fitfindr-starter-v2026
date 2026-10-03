@@ -66,7 +66,7 @@ Each listing has `id`, `title`, `description`, `category`, `style_tags`, `size`,
 
 Size match is on tokens, not a substring. Split both sizes on anything that is not a letter or a digit, keeping decimals like `8.5` as one token. A letter size (`S`, `M`, `L`, `XL`, and the same with an extra `X`) matches when that token is present, so `M` matches `S/M` and `M/L`, `S` does not match `US 9`, and `L` does not match `XL`. A number under 20, or any number with a decimal, is a shoe size and matches that number token only, so `8` matches `US 8` and not `US 8.5`. A number 20 or above is a waist: look for the token `W` plus that number, so `30` and `W30` both match `W30 L30`. `One Size` matches only a request for one size. The list cap is `config.SEARCH_RESULT_LIMIT`, which is 10.
 
-Score the listings that pass the filters by keyword overlap with `description`. Ignore words shorter than two letters and the words `a`, `an`, `the`, `and`, `or`, `for`, `in`, `of`, `with`, `under`, `size`. A hit in `title` or `style_tags` is 3, a hit in `description` is 2, and a hit in `category`, `colors`, or `brand` is 1. A hit means the keyword equals a token in that field. Drop anything that scores 0. Sort by score descending, then `price` ascending.
+Score the listings that pass the filters by keyword overlap with `description`. Ignore words shorter than two letters and the words `a`, `an`, `the`, `and`, `or`, `for`, `in`, `of`, `with`, `under`, `size`. A hit in `title` or `style_tags` is 3, a hit in `description` is 2, and a hit in `category`, `colors`, or `brand` is 1. A hit means the keyword equals a token in that field, compared in lowercase. Drop anything that scores 0. Sort by score descending, then `price` ascending.
 
 ### `suggest_outfit`
 
@@ -124,18 +124,23 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
+$ python -c "from tools import search_listings; hits = search_listings('graphic tee', max_price=30); print([(h['title'], h['price'], h['size'], h['platform']) for h in hits]); print('empty', search_listings('designer ballgown', size='XXS', max_price=5))"
+[('Y2K Baby Tee — Butterfly Print', 18.0, 'S/M', 'depop'), ('Vintage Band Tee — Faded Grey', 19.0, 'L', 'depop'), ('Graphic Tee — 2003 Tour Bootleg Style', 24.0, 'L', 'depop'), ('Mesh Long-Sleeve Top — Black', 15.0, 'S/M', 'depop'), ('Vintage Graphic Hoodie — Faded Black', 26.0, 'L', 'depop'), ('Low-Rise Cargo Pants — Khaki', 27.0, 'W29', 'poshmark')]
+empty []
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
-
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, get_empty_wardrobe, load_listings; item = load_listings()[0]; print(suggest_outfit(item, get_example_wardrobe())); print('--- empty wardrobe ---'); print(suggest_outfit(item, get_empty_wardrobe()))"
+Pair the Vintage Levi's 501 Jeans — Medium Wash with the White ribbed tank top and the Vintage black denim jacket for a classic double-denim look, finished with the Chunky white sneakers. For a cozier streetwear outfit, layer the Oversized grey crewneck sweatshirt over the jeans and wear them with the Black combat boots and the Black crossbody bag.
+--- empty wardrobe ---
+These versatile vintage Levi's 501 jeans pair effortlessly with a crisp white t-shirt and classic canvas sneakers for a timeless, everyday look. For a slightly more elevated outfit, try styling the medium wash denim with a fitted black turtleneck and leather ankle boots.
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
-
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; item = load_listings()[0]; a = create_fit_card('jeans and white sneakers', item); b = create_fit_card('jeans and white sneakers', item); c = create_fit_card('jeans and white sneakers', item); print(a); print('identical', a == b == c); print(create_fit_card('   ', item))"
+Obsessed with how these Vintage Levi's 501 Jeans — Medium Wash fit with crisp white sneakers for that effortless 90s off-duty look. Snagged them for just 38 and I'm honestly never taking them off. They just went live on my depop if you want to steal the vibe!
+identical True
+There is no outfit to post for Vintage Levi's 501 Jeans — Medium Wash.
 ```
 
 ---

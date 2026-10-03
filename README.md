@@ -117,8 +117,21 @@ Score the listings that pass the filters by keyword overlap with `description`. 
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'looking for a vintage graphic tee under $30'
 
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   You can pair the Y2K Baby Tee — Butterfly Print with the Baggy straight-leg jeans, dark wash and the Chunky white sneakers for a casual everyday look. Alternatively, you can style the Y2K Baby Tee — Butterfly Print with the Wide-leg khaki trousers and the Chunky white sneakers for a relaxed yet put-together outfit.
+
+  Fit card: Just scored this dreamy little number on depop and I'm obsessed with the early 2000s mall-rat energy. For just 18, the Y2K Baby Tee — Butterfly Print is already living in my everyday rotation paired with dark wash baggy jeans and chunky white sneakers. The pink and purple graphic gives me all the nostalgic feels without trying too hard.
+
+0 model calls this session, 2 served from cache
+
+$ python app.py ask 'designer ballgown size XXS under $5'
+
+  Nothing matched 'designer ballgown' in size XXS under $5. Raise the price, drop the size, or change the words.
+
+0 model calls this session
 ```
 
 **The three tools, tested one at a time**

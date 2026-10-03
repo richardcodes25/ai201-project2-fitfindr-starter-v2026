@@ -13,10 +13,18 @@ Build and test your three tools in `tools.py` first. Then come here.
     python agent.py          runs both example paths below
 """
 
-import config
+import re
+
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
-from generate import ModelUnavailable
+from generate import ModelUnavailable  # noqa: F401 — unit 4 catches this
+
+# Regex, not a model call. See README, "How the query is parsed."
+_PRICE_RE = re.compile(r"\bunder\s+\$?\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
+_SIZE_RE = re.compile(
+    r"\bsize\s+(US\s+\d+(?:\.\d+)?|W\d+|one\s+size|\d+(?:\.\d+)?|[A-Za-z]{1,4}(?:/[A-Za-z]{1,4})?)",
+    re.IGNORECASE,
+)
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -45,6 +53,50 @@ def new_session(query: str, wardrobe: dict) -> dict:
         "fit_card": None,            # what create_fit_card returned
         "error": None,               # set when the run ended early
     }
+
+
+def _parse_query(query: str) -> dict:
+    """Pull description, size, and max_price out of one query. Missing filters are None."""
+    price_match = _PRICE_RE.search(query)
+    size_match = _SIZE_RE.search(query)
+    description = _PRICE_RE.sub(" ", query)
+    description = _SIZE_RE.sub(" ", description)
+    description = re.sub(r"\s+", " ", description).strip(" ,.-")
+    size = None
+    if size_match:
+        size = re.sub(r"\s+", " ", size_match.group(1)).strip()
+    max_price = float(price_match.group(1)) if price_match else None
+    return {"description": description, "size": size, "max_price": max_price}
+
+
+def _no_match_message(parsed: dict) -> str:
+    """Name what was searched and what to change. 'No results' is not enough."""
+    description = parsed["description"] or "those words"
+    size = parsed["size"]
+    max_price = parsed["max_price"]
+    looked = f"'{description}'"
+    if size:
+        looked += f" in size {size}"
+    else:
+        looked += " with no size"
+    if max_price is None:
+        looked += " and no price limit"
+    else:
+        shown = int(max_price) if max_price.is_integer() else max_price
+        looked += f" under ${shown}"
+    changes = []
+    if max_price is not None:
+        changes.append("raise the price")
+    if size:
+        changes.append("drop the size")
+    changes.append("change the words")
+    if len(changes) == 1:
+        advice = changes[0]
+    elif len(changes) == 2:
+        advice = f"{changes[0]} or {changes[1]}"
+    else:
+        advice = f"{changes[0]}, {changes[1]}, or {changes[2]}"
+    return f"Nothing matched {looked}. {advice[0].upper()}{advice[1:]}."
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
@@ -106,9 +158,41 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, wardrobe)
+    rounds = 0
 
-    # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
+    def _round() -> None:
+        nonlocal rounds
+        rounds += 1
+        trace.check_iterations(rounds)
+
+    _round()
+    session["parsed"] = _parse_query(session["query"])
+
+    _round()
+    parsed = session["parsed"]
+    session["search_results"] = search_listings(
+        parsed["description"],
+        size=parsed["size"],
+        max_price=parsed["max_price"],
+    )
+
+    # Branch on the list that was just stored, not on a local variable.
+    if len(session["search_results"]) == 0:
+        session["error"] = _no_match_message(session["parsed"])
+        return session
+
+    _round()
+    session["selected_item"] = session["search_results"][0]
+    session["outfit_suggestion"] = suggest_outfit(
+        session["selected_item"],
+        session["wardrobe"],
+    )
+
+    _round()
+    session["fit_card"] = create_fit_card(
+        session["outfit_suggestion"],
+        session["selected_item"],
+    )
     return session
 
 

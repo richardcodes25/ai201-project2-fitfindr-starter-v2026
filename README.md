@@ -59,24 +59,28 @@ Each listing has `id`, `title`, `description`, `category`, `style_tags`, `size`,
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Searches the 40 listings for items whose text matches a description, after optional size and price filters.
+- **Inputs:** `description` (str), `size` (str or None), `max_price` (float or None). None skips that filter. `max_price` is inclusive.
+- **Returns:** A list of at most 10 full listing dicts, best match first. Each dict has `id` (str), `title` (str), `description` (str), `category` (str), `style_tags` (list of str), `size` (str), `condition` (str), `price` (float), `colors` (list of str), `brand` (str or None), and `platform` (str).
+- **When it has nothing:** An empty list. Not None, and it does not raise.
+
+Size match is on tokens, not a substring. Split both sizes on anything that is not a letter or a digit, keeping decimals like `8.5` as one token. A letter size (`S`, `M`, `L`, `XL`, and the same with an extra `X`) matches when that token is present, so `M` matches `S/M` and `M/L`, `S` does not match `US 9`, and `L` does not match `XL`. A number under 20, or any number with a decimal, is a shoe size and matches that number token only, so `8` matches `US 8` and not `US 8.5`. A number 20 or above is a waist: look for the token `W` plus that number, so `30` and `W30` both match `W30 L30`. `One Size` matches only a request for one size. The list cap is `config.SEARCH_RESULT_LIMIT`, which is 10.
+
+Score the listings that pass the filters by keyword overlap with `description`. Ignore words shorter than two letters and the words `a`, `an`, `the`, `and`, `or`, `for`, `in`, `of`, `with`, `under`, `size`. A hit in `title` or `style_tags` is 3, a hit in `description` is 2, and a hit in `category`, `colors`, or `brand` is 1. A hit means the keyword equals a token in that field. Drop anything that scores 0. Sort by score descending, then `price` ascending.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Asks the model, through `generate()`, for one or two outfits built around a listing the user is considering.
+- **Inputs:** `new_item` (dict, one listing from `search_listings`), `wardrobe` (dict with an `items` key holding a list of wardrobe dicts). Each wardrobe dict has `id` (str), `name` (str), `category` (str), `colors` (list of str), `style_tags` (list of str), and `notes` (str or None).
+- **Returns:** A non-empty str naming one or two outfits. When `items` is not empty, each outfit names pieces from that list by `name`.
+- **When it has nothing:** Still a non-empty str. An empty `items` list gets general styling advice for `new_item` and names no wardrobe piece. If `generate()` returns blank, return one sentence that names `new_item["title"]`. Do not return `""` and do not raise.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Asks the model, through `generate()`, for a short social caption about the find and the outfit.
+- **Inputs:** `outfit` (str, the text from `suggest_outfit`), `new_item` (dict, the same listing dict passed to `suggest_outfit`).
+- **Returns:** A non-empty str of two to four sentences. It names `new_item["title"]`, `new_item["price"]`, and `new_item["platform"]` once each.
+- **When it has nothing:** If `outfit` is empty or only whitespace, do not call the model and do not raise. Return one sentence that says there is no outfit to post and names `new_item["title"]`.
 
 ---
 
@@ -93,13 +97,13 @@ Each listing has `id`, `title`, `description`, `category`, `style_tags`, `size`,
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns an empty list, put a message in `session["error"]` that names the description, size, and price that were searched and tells the user to raise the price, drop the size, or change the words, then return the session. Otherwise take the first result and go to `suggest_outfit`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex and string splitting, not a model call. `under $30` or `under 30` becomes `max_price` (float); if that phrase is missing, `max_price` is None. `size M`, `size US 8`, or `size W30` becomes `size` (str); if that phrase is missing, `size` is None. `description` (str) is the query with those two phrases removed.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` (str) goes in first. `parsed` (dict with `description`, `size`, `max_price`) is next. `search_results` (list of listing dicts) is what `search_listings` returned. On the empty-list branch, `error` (str) is set and `selected_item`, `outfit_suggestion`, and `fit_card` stay None. Otherwise `selected_item` (dict) is `search_results[0]`, `outfit_suggestion` (str) is what `suggest_outfit` returned, and `fit_card` (str) is what `create_fit_card` returned.
 
 ---
 

@@ -39,7 +39,7 @@
 
 ## What This Does
 
-A user asks for a secondhand piece in plain language, like a vintage graphic tee under $30. FitFindr is meant to search the 40 listings, suggest an outfit from their wardrobe, and hand back a fit card. The planning loop is still the starter stub, so that query stops with "The planning loop isn't built yet" and returns no card.
+A user asks for a secondhand piece in plain language, like a vintage graphic tee under $30 or platform sneakers in size 8. FitFindr turns that into a description, an optional size, and an optional price ceiling, then searches the 40 listings. If anything matches, it takes the first result, suggests an outfit from the wardrobe, and returns a short fit card. If the search list is empty, it stops with a message that says what to change, and it does not call the outfit tools. `search_listings` is plain Python. `suggest_outfit` and `create_fit_card` call the model through `generate()`.
 
 Each listing has `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, and `platform`. Those are the only fields `search_listings` can filter on. Sizes are not one format (`W30 L30`, `S/M`, `XL (oversized)`, `M`), `price` is a float, and `brand` is often null. A wardrobe item has `id`, `name`, `category`, `colors`, `style_tags`, and optional `notes`. An empty wardrobe is `{"items": []}`.
 
@@ -101,7 +101,7 @@ Score the listings that pass the filters by keyword overlap with `description`. 
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** Regex and string splitting, not a model call. `under $30` or `under 30` becomes `max_price` (float); if that phrase is missing, `max_price` is None. `size M`, `size US 8`, or `size W30` becomes `size` (str); if that phrase is missing, `size` is None. `description` (str) is the query with those two phrases removed.
+**How the query is parsed:** Regex and string splitting, not a model call. `under $30` or `under 30` becomes `max_price` (float); if that phrase is missing, `max_price` is None. `size M`, `size 8`, `size US 8`, `size US 8.5`, or `size W30` becomes `size` (str); if that phrase is missing, `size` is None. `description` (str) is the query with those two phrases removed.
 
 **What moves through the session:** `query` (str) goes in first. `parsed` (dict with `description`, `size`, `max_price`) is next. `search_results` (list of listing dicts) is what `search_listings` returned. On the empty-list branch, `error` (str) is set and `selected_item`, `outfit_suggestion`, and `fit_card` stay None. Otherwise `selected_item` (dict) is `search_results[0]`, `outfit_suggestion` (str) is what `suggest_outfit` returned, and `fit_card` (str) is what `create_fit_card` returned.
 
@@ -169,15 +169,15 @@ There is no outfit to post for Vintage Levi's 501 Jeans — Medium Wash.
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* `search_listings` from the tool spec: token size matching, keyword scores, and an empty list when nothing matches.
+- *What came back:* A scorer that compared keywords to tokens, but the spec never said to lowercase them. A title token `Graphic` would have missed the tag `graphic tee`.
+- *What I changed:* Both sides are lowercased before the comparison, and the spec now says "compared in lowercase." The empty case was already `[]`. `search_listings('designer ballgown', size='XXS', max_price=5)` prints `empty []`.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* A regex parser for `size M`, `size US 8`, and `size W30`, then a check on `platform sneakers size 8`.
+- *What came back:* `{'description': 'platform sneakers size 8', 'size': None, 'max_price': None}`. The pattern accepted `US 8` and letters, and skipped a bare number, so the size filter never ran.
+- *What I changed:* Added `\d+(?:\.\d+)?` to the size pattern. The same query now parses to size `"8"` and description `"platform sneakers"`.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

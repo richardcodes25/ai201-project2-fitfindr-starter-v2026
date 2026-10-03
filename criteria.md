@@ -24,10 +24,7 @@ data earns credit; *"80% seemed reasonable"* does not.
 Given a query that matches at least one listing, the agent completes all three
 tool calls and returns a fit card — in at least 4 of 5 tries.
 
-**Why this target:**
-<!-- Why 4 of 5 and not 5 of 5? Something about your search, probably —
-     "my search is a plain keyword match and some phrasings will miss" is a
-     real answer. -->
+**Why this target:** Search scores keyword overlap, so a phrasing a person would still call a match ("old band shirt" for the bootleg graphic tee) can score zero and the loop stops with no fit card. The next two tools also call the model, and one try in five can come back blank. Five of five would require every phrasing to hit and both model calls to succeed every time.
 
 ---
 
@@ -36,65 +33,31 @@ tool calls and returns a fit card — in at least 4 of 5 tries.
 Given a query that matches no listings, the agent stops before calling
 `suggest_outfit` and returns a message naming what to change — 5 of 5 tries.
 
-**Why this target:**
-<!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
-     about this path? -->
+**Why this target:** This path only checks whether the search list is empty, then returns. It never calls the model, so temperature and wording cannot change the result. If the list is empty, the stop either happens or it does not. Four of five would let a loop that sometimes still calls `suggest_outfit` pass.
 
 ---
 
-## 3. Something about state
+## 3. The item that was selected is the item the next tools received
 
-<!-- YOU WRITE THIS ONE.
+In 5 of 5 runs where `search_results` is non-empty, `session["selected_item"]["id"]` equals `search_results[0]["id"]`, equals the `id` of the `new_item` argument passed to `suggest_outfit`, and equals the `id` of the `new_item` argument passed to `create_fit_card`.
 
-     How would you know that the item your search found is the same item the
-     next tool received? Name something countable or observable.
-
-     This is the criterion people find hardest, because state failure doesn't
-     look like state failure — it looks like a tool problem. Something that
-     compares session["selected_item"] against what actually reached
-     suggest_outfit is the shape you're after. -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** The check is string equality on an id. The model never gets a vote, so one mismatch means the session was overwritten or the wrong dict was passed. Four of five would treat that bug as noise.
 
 ---
 
-## 4. Something about the fit card
+## 4. Fit cards keep the facts and do not share an opening
 
-<!-- YOU WRITE THIS ONE.
+For 5 different listings, with the response cache off, all 5 fit cards contain that listing's whole-dollar price (the digits before the decimal point) and its `platform` string, and at least 4 of the 5 cards have a first sentence (the text before the first period) that none of the other four share.
 
-     The fit card calls a model, so the same input can produce different words
-     each time. That's not a bug — it's the nature of the tool. So what would
-     make it acceptable?
-
-     Think about what you'd actually be unhappy to see. A caption that never
-     mentions the price? Two different items producing the same opening
-     sentence? A card longer than a caption anyone would post? Any of those can
-     be turned into a number. -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** Price and platform are copied from the listing, so a caption that omits them is a miss on all 5, not a style difference. The opening sentence is the part the model is free to vary, and at temperature 0.9 two captions can still start the same way. Requiring all 5 openings to differ would fail a run that did the job.
 
 ---
 
-## 5. Your choice
+## 5. A price ceiling is never broken
 
-<!-- YOU WRITE THIS ONE TOO.
+For 5 queries that contain the words `under $30` and that each match at least one listing priced at or below 30, `search_results` is non-empty and every listing in it has `price` <= 30, in 5 of 5 tries.
 
-     Pick something you actually care about getting right. Speed, the empty
-     wardrobe path, what happens when the model can't be reached, whether the
-     search respects a price ceiling — anything, as long as it names a number
-     or an observable outcome. -->
-
-
-
-**Why this target:**
+**Why this target:** The check is a numeric comparison, same as criterion 2, so a single listing over $30 means the filter did not run. Four of five would excuse that. A tighter cap such as $15 would fail on queries whose only keyword hits cost more than $15, which is a ranking miss rather than a ceiling miss. The result list has to be non-empty so an empty list cannot pass by having nothing over the cap.
 
 
 

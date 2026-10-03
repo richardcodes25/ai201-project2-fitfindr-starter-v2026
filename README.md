@@ -39,9 +39,9 @@
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
+A user asks for a secondhand piece in plain language, like a vintage graphic tee under $30. FitFindr is meant to search the 40 listings, suggest an outfit from their wardrobe, and hand back a fit card. The planning loop is still the starter stub, so that query stops with "The planning loop isn't built yet" and returns no card.
 
-
+Each listing has `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, and `platform`. Those are the only fields `search_listings` can filter on. Sizes are not one format (`W30 L30`, `S/M`, `XL (oversized)`, `M`), `price` is a float, and `brand` is often null. A wardrobe item has `id`, `name`, `category`, `colors`, `style_tags`, and optional `notes`. An empty wardrobe is `{"items": []}`.
 
 ---
 

@@ -179,6 +179,27 @@ There is no outfit to post for Vintage Levi's 501 Jeans — Medium Wash.
 - *What came back:* `{'description': 'platform sneakers size 8', 'size': None, 'max_price': None}`. The pattern accepted `US 8` and letters, and skipped a bare number, so the size filter never ran.
 - *What I changed:* Added `\d+(?:\.\d+)?` to the size pattern. The same query now parses to size `"8"` and description `"platform sneakers"`.
 
+---
+
+## Stretch
+
+Declared before the code below existed.
+
+### Fourth tool: `compare_price`
+
+- **What it does:** Compares the selected listing's price with the other listings that search just returned.
+- **Inputs:** `selected` (dict, one listing), `others` (list of listing dicts).
+- **Returns:** A str naming the selected title and its whole-dollar price. If another listing in `others` is cheaper, the sentence also names the cheapest of those: its title, whole-dollar price, platform, and how many dollars more the selected item costs.
+- **When it has nothing:** If no other listing is cheaper, a str that says the selected item is the cheapest match. Not `""`, and it does not raise.
+
+### Second branch
+
+If `search_results` contains a listing with a lower `price` than `selected_item`, call `compare_price` and store the sentence in `session["price_comparison"]`, then go to `suggest_outfit`. If nothing is cheaper, leave `price_comparison` as None and go straight to `suggest_outfit`. The empty-search stop is unchanged. Both branches live in `agent.py::run_agent`.
+
+### Style memory
+
+After a run that selects an item, save that item into `wardrobe_memory.json`. The next run loads that file and adds those pieces to the wardrobe passed into `suggest_outfit`. A saved piece has notes `saved from a previous search`, and one outfit in the next run names it.
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.

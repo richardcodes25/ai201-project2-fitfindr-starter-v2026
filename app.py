@@ -118,6 +118,17 @@ def _ask_one(query, wardrobe, use_trace):
         print(f"  {session['error']}")
     else:
         item = session["selected_item"] or {}
+        remembered = [
+            piece.get("name")
+            for piece in (session.get("wardrobe") or {}).get("items") or []
+            if piece.get("notes") == "saved from a previous search"
+        ]
+        if remembered:
+            print(f"  Remembered: {', '.join(remembered)}")
+            print()
+        if session.get("price_comparison"):
+            print(f"  Price:    {session['price_comparison']}")
+            print()
         print(f"  Found:    {item.get('title')} — ${item.get('price')} on {item.get('platform')}")
         print()
         print(f"  Outfit:   {session['outfit_suggestion']}")

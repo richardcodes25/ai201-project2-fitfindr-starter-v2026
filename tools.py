@@ -260,6 +260,18 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
             "name from the wardrobe list. Do not invent owned pieces. Reply "
             "with sentences, not a heading."
         )
+        saved = [
+            item.get("name")
+            for item in items
+            if item.get("notes") == "saved from a previous search" and item.get("name")
+        ]
+        if saved:
+            system += (
+                " One outfit must include each piece whose notes say it was "
+                "saved from a previous search, by its exact name: "
+                + "; ".join(saved)
+                + "."
+            )
         prompt = (
             f"Item they are considering:\n{facts}\n\n"
             f"Wardrobe, one piece per line as name | category | colors | tags | notes:\n"
@@ -331,3 +343,40 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
             f"{outfit.strip()}"
         )
     return text
+
+
+def compare_price(selected: dict, others: list[dict]) -> str:
+    """
+    Say whether the selected listing costs more than another match.
+
+    Args:
+        selected: the listing the agent chose.
+        others:   the listings search returned, including the selected one.
+
+    Returns:
+        A sentence naming the selected title and its whole-dollar price.
+        If another listing is cheaper, the sentence names the cheapest of
+        those, its price, its platform, and the dollar gap.
+        If nothing is cheaper, a sentence that says this is the cheapest match.
+    """
+    title = selected.get("title") or "This item"
+    price = float(selected.get("price") or 0)
+    cheaper = [
+        item for item in (others or [])
+        if item.get("id") != selected.get("id") and float(item.get("price") or 0) < price
+    ]
+    if not cheaper:
+        return f"{title} at {_whole_dollars(price)} is the cheapest match."
+    best = min(cheaper, key=lambda item: float(item["price"]))
+    gap = price - float(best["price"])
+    return (
+        f"{title} at {_whole_dollars(price)} costs {_whole_dollars(gap)} more than "
+        f"{best.get('title')} at {_whole_dollars(best.get('price'))} on {best.get('platform')}."
+    )
+
+
+def _whole_dollars(price) -> str:
+    value = float(price)
+    if value.is_integer():
+        return str(int(value))
+    return str(value)

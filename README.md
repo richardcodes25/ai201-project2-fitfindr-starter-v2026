@@ -82,6 +82,13 @@ Score the listings that pass the filters by keyword overlap with `description`. 
 - **Returns:** A non-empty str of two to four sentences. It names `new_item["title"]`, `new_item["price"]`, and `new_item["platform"]` once each.
 - **When it has nothing:** If `outfit` is empty or only whitespace, do not call the model and do not raise. Return one sentence that says there is no outfit to post and names `new_item["title"]`.
 
+### `compare_price`
+
+- **What it does:** Compares the selected listing's price with the other listings that search just returned.
+- **Inputs:** `selected` (dict, one listing), `others` (list of listing dicts).
+- **Returns:** A str naming the selected title and its whole-dollar price. If another listing is cheaper, the sentence also names the cheapest of those: its title, whole-dollar price, platform, and how many dollars more the selected item costs.
+- **When it has nothing:** If no other listing is cheaper, a str that says the selected item is the cheapest match. Not `""`, and it does not raise.
+
 ---
 
 ## Planning Loop
@@ -97,13 +104,13 @@ Score the listings that pass the filters by keyword overlap with `description`. 
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:** If `search_listings` returns an empty list, put a message in `session["error"]` that names the description, size, and price that were searched and tells the user to raise the price, drop the size, or change the words, then return the session. Otherwise take the first result and go to `suggest_outfit`.
+**Branch rule:** If `search_listings` returns an empty list, put a message in `session["error"]` that names the description, size, and price that were searched and tells the user to raise the price, drop the size, or change the words, then return the session. Otherwise take the first result. If another result has a lower price, call `compare_price` and store the sentence in `session["price_comparison"]`, then go to `suggest_outfit`. If nothing is cheaper, leave `price_comparison` as None and go straight to `suggest_outfit`.
 
 **Where it lives:** `agent.py::run_agent`
 
 **How the query is parsed:** Regex and string splitting, not a model call. `under $30` or `under 30` becomes `max_price` (float); if that phrase is missing, `max_price` is None. `size M`, `size 8`, `size US 8`, `size US 8.5`, or `size W30` becomes `size` (str); if that phrase is missing, `size` is None. `description` (str) is the query with those two phrases removed.
 
-**What moves through the session:** `query` (str) goes in first. `parsed` (dict with `description`, `size`, `max_price`) is next. `search_results` (list of listing dicts) is what `search_listings` returned. On the empty-list branch, `error` (str) is set and `selected_item`, `outfit_suggestion`, and `fit_card` stay None. Otherwise `selected_item` (dict) is `search_results[0]`, `outfit_suggestion` (str) is what `suggest_outfit` returned, and `fit_card` (str) is what `create_fit_card` returned.
+**What moves through the session:** `query` (str) goes in first. `parsed` (dict with `description`, `size`, `max_price`) is next. `search_results` (list of listing dicts) is what `search_listings` returned. On the empty-list branch, `error` (str) is set and `selected_item`, `price_comparison`, `outfit_suggestion`, and `fit_card` stay None. Otherwise `selected_item` (dict) is `search_results[0]`. `price_comparison` (str or None) is set only when a cheaper listing is in that list. `outfit_suggestion` (str) is what `suggest_outfit` returned, and `fit_card` (str) is what `create_fit_card` returned. The wardrobe for `suggest_outfit` is the wardrobe passed in, plus any pieces saved in `wardrobe_memory.json` from earlier runs.
 
 ---
 
@@ -118,6 +125,8 @@ Score the listings that pass the filters by keyword overlap with `description`. 
 
 ```
 $ python app.py ask 'looking for a vintage graphic tee under $30'
+
+  Price:    Y2K Baby Tee — Butterfly Print at 18 costs 6 more than Leather Belt — Brown, Braided at 12 on thredUp.
 
   Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
 
@@ -199,6 +208,36 @@ If `search_results` contains a listing with a lower `price` than `selected_item`
 ### Style memory
 
 After a run that selects an item, save that item into `wardrobe_memory.json`. The next run loads that file and adds those pieces to the wardrobe passed into `suggest_outfit`. A saved piece has notes `saved from a previous search`, and one outfit in the next run names it.
+
+`compare_price` is `tools.py::compare_price`. The second branch and the save both happen in `agent.py::run_agent`. What changed: a matching query can now print a price sentence before the outfit, and the next query's wardrobe includes the item the previous query selected.
+
+The price branch was taken here. Search put a $12 belt in the same result list as the $18 tee, so the loop called `compare_price` before `suggest_outfit`.
+
+```
+$ python app.py ask 'looking for a vintage graphic tee under $30'
+
+  Price:    Y2K Baby Tee — Butterfly Print at 18 costs 6 more than Leather Belt — Brown, Braided at 12 on thredUp.
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+```
+
+Style memory, with `wardrobe_memory.json` cleared before the first command. The second outfit names the tee the first run stored.
+
+```
+$ python app.py ask 'looking for a vintage graphic tee under $30'
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+$ python app.py ask 'oversized flannel shirt'
+
+  Remembered: Y2K Baby Tee — Butterfly Print
+
+  Price:    Oversized Flannel Shirt — Plaid Red/Black at 22 costs 5 more than Tie-Dye Long Sleeve — Pastel at 17 on depop.
+
+  Found:    Oversized Flannel Shirt — Plaid Red/Black — $22.0 on thredUp
+
+  Outfit:   For a layered 90s grunge streetwear look, wear your Oversized Flannel Shirt — Plaid Red/Black buttoned over the Y2K Baby Tee — Butterfly Print, paired with the Baggy straight-leg jeans, dark wash, and finish the outfit with the Black combat boots.
+```
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

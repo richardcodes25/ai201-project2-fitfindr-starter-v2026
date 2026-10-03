@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "id": "lst_002",
+      "name": "Y2K Baby Tee \u2014 Butterfly Print",
+      "category": "tops",
+      "colors": [
+        "white",
+        "pink",
+        "purple"
+      ],
+      "style_tags": [
+        "y2k",
+        "vintage",
+        "graphic tee",
+        "cottagecore"
+      ],
+      "notes": "saved from a previous search"
+    },
+    {
+      "id": "lst_003",
+      "name": "Oversized Flannel Shirt \u2014 Plaid Red/Black",
+      "category": "tops",
+      "colors": [
+        "red",
+        "black"
+      ],
+      "style_tags": [
+        "grunge",
+        "vintage",
+        "flannel",
+        "streetwear",
+        "layering"
+      ],
+      "notes": "saved from a previous search"
+    }
+  ]
+}

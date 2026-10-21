@@ -188,6 +188,12 @@ There is no outfit to post for Vintage Levi's 501 Jeans — Medium Wash.
 - *What came back:* `{'description': 'platform sneakers size 8', 'size': None, 'max_price': None}`. The pattern accepted `US 8` and letters, and skipped a bare number, so the size filter never ran.
 - *What I changed:* Added `\d+(?:\.\d+)?` to the size pattern. The same query now parses to size `"8"` and description `"platform sneakers"`.
 
+**Moment 3**
+
+- *What I asked for:* Whether `old band shirt` scores zero, which is the miss criterion 1's reason was written around.
+- *What came back:* Five listings, with the Vintage Polo Shirt at $18 first. `shirt` hit the polo's title. `band` was the only word that hit the band tee. `old` hit nothing, so it never counted as `vintage`.
+- *What I changed:* In `tools.py::_keywords`, `shirt` also counts as `tee` and `old` also counts as `vintage`. `search_listings("old band shirt")` now returns the Vintage Band Tee — Faded Grey first.
+
 ---
 
 ## Stretch
@@ -477,13 +483,13 @@ Model unavailable (one character of the key changed, then restored): The model c
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+No criterion is still missed. All five are MET (5/5) in both run logs.
 
+What is left is the search the criteria did not have to pass. The alias list is two words. `old concert shirt` still ignores `concert`. It now returns the Y2K Baby Tee first, tied on score and price with the polo, because `old` becomes `vintage` and `shirt` becomes `tee`. I would only add the `tee` alias when the query also has a word such as `band` or `graphic`. I stopped because this unit allowed one scoring change, and the five targets were already met.
 
+A listing still survives on a single shared word. `vintage graphic tee under $30` includes the leather belt and the bucket hat. I would drop a hit that matches only one word when the query has several. I stopped because those lists are the ones criteria 1 and 5 already passed on, and changing the cutoff would be a second improvement.
 
-<!-- ═════════════════════════════════════════════════════════════════════
+---<!-- ═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3
 

@@ -367,13 +367,21 @@ Found the ultimate dad jacket on thredUp and I am never taking it off. This Vint
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | A matching query completes all three tools | 4 of 5 | MET | Five tries of `vintage graphic tee under $30` each ran `search_listings`, `suggest_outfit`, and `create_fit_card` and returned a non-empty fit card. Five passes meets a target of 4. |
+| 2 | An impossible query stops before `suggest_outfit` | 5 of 5 | MET | Five tries of the ballgown query each stopped on an empty list, told the user to raise the price, drop the size, or change the words, and the trace has no `suggest_outfit` step. |
+| 3 | The selected id is the id passed on | 5 of 5 | MET | On all five `suede chelsea boots` tries, `search_results[0]`, `selected_item`, and the `new_item` passed to `suggest_outfit` and `create_fit_card` were `lst_028`. |
+| 4 | Fit cards keep the facts and do not share an opening | all 5 have price and platform; at least 4 openings unique | MET | In each of five rounds, every card contained that listing's whole-dollar price and platform, and all five first sentences (text before the first period) were different. |
+| 5 | A price ceiling is never broken | 5 of 5 | MET | In each of five rounds, all five `under $30` queries returned a non-empty list and every price was <= 30. The highest price in any list was 30.0. |
 
 **Diagnoses**
+
+Nothing missed. There is no shared failure in a tool, the loop's branch, the session, or the model's output.
+
+The opposite reading that comes closest is criterion 1: the five tries used `vintage graphic tee under $30`, which overlaps a listing title, and the written reason for the target was that a looser phrasing such as "old band shirt" can score zero. That does not flip the verdict. The criterion says a query that matches at least one listing, and this one does. Five of five fit cards against a target of 4 of 5 is MET.
+
+Criteria 2, 3, and 5 ask for 5 of 5 on checks the model cannot sway, and the counts are 5. Criterion 4's uniqueness bar of 4 of 5 was a little soft: every round had 5 distinct openings, so requiring all 5 to differ would still be MET. That softness did not hide a miss.
+
+The criterion I would tighten is criterion 1. Keep the 4-of-5 count, because a model call can still come back blank. Change the query to one that shares little with the title, such as "old band shirt", so a keyword miss can actually show up. I am not revising `criteria.md`. The original line is measurable, and it was met.
 
 
 

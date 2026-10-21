@@ -318,22 +318,45 @@ that produced it:
      the same length, your branch isn't working — and this is the fastest way
      anyone will ever find that out. -->
 
-**Happy path**
+**Happy path** — `python app.py ask 'vintage graphic tee under $30' --trace`
 
 ```
-
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+      →    branch: results, continue
+[2] compare_price
+      in:  dict with keys: selected, others
+      out: Y2K Baby Tee — Butterfly Print at 18 costs 6 more than Leather Belt — Brown, Braided at 12 on thredUp.
+      →    branch: a cheaper listing exists
+[3] suggest_outfit
+      in:  dict with keys: new_item, wardrobe_items
+      out: For a casual Y2K-inspired look, wear the Y2K Baby Tee — Butterfly Print tucked into the Baggy straight-leg jea…
+[4] create_fit_card
+      in:  dict with keys: outfit, new_item
+      out: Just scored the ultimate early 2000s piece for only 18 on depop and I am obsessed with the pink and purple col…
 ```
 
-**Empty search**
+**Empty search** — `python app.py ask 'designer ballgown size XXS under $5' --trace`
 
 ```
-
+[1] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: [] (empty)
+      →    branch: empty, stopping
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+The agent then said: Nothing matched 'designer ballgown' in size XXS under $5. Raise the price, drop the size, or change the words.
+
+**Failure messages**
+
+Empty search: Nothing matched 'designer ballgown' in size XXS under $5. Raise the price, drop the size, or change the words.
+
+Empty wardrobe (`python app.py ask 'vintage graphic tee under $30' --empty-wardrobe`): Pair this fitted graphic baby tee with a pair of medium-wash low-rise bootcut jeans and chunky platform sneakers for a classic, nostalgic look straight out of the early 2000s. Alternatively, tuck the top into a pleated tennis skirt paired with white ankle socks and retro trainers for a sweet, sporty outfit that balances casual and cute.
+
+Model unavailable (one character of the key changed, then restored): The model couldn't be reached, so this step stopped. The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com. Then run this query again.
+
+**On the MCP move:** `search_listings` is the only tool registered on the FitFindr MCP server. `run_agent` calls it through `call_tool` instead of importing it. The same query still returns the Y2K baby tee first, and an impossible query still returns an empty list and stops. The other tools stay direct function calls.
 
 
 

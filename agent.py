@@ -20,7 +20,7 @@ from pathlib import Path
 import trace
 from mcp_client import call_tool
 from tools import suggest_outfit, create_fit_card, compare_price
-from generate import ModelUnavailable  # noqa: F401 — unit 4 catches this
+from generate import ModelUnavailable
 
 _MEMORY_PATH = Path(__file__).resolve().parent / "wardrobe_memory.json"
 _SAVED_NOTE = "saved from a previous search"
@@ -95,6 +95,17 @@ def _remember(selected: dict) -> None:
     _MEMORY_PATH.write_text(
         json.dumps({"items": items}, indent=2) + "\n",
         encoding="utf-8",
+    )
+
+
+def _model_down(exc: ModelUnavailable) -> str:
+    """Say the model failed and what to try. Not a stack trace."""
+    detail = str(exc).strip()
+    if not detail:
+        detail = "Check the API key in your .env file."
+    return (
+        "The model couldn't be reached, so this step stopped. "
+        f"{detail} Then run this query again."
     )
 
 
@@ -201,6 +212,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, _with_memory(wardrobe))
+    trace.start_trace()
     rounds = 0
 
     def _round() -> None:
@@ -218,9 +230,20 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         "size": parsed["size"],
         "max_price": parsed["max_price"],
     })
+    stopped = len(session["search_results"]) == 0
+    trace.step(
+        "search_listings (via MCP)",
+        inputs={
+            "description": parsed["description"],
+            "size": parsed["size"],
+            "max_price": parsed["max_price"],
+        },
+        returned=session["search_results"],
+        note="branch: empty, stopping" if stopped else "branch: results, continue",
+    )
 
     # Branch on the list that was just stored, not on a local variable.
-    if len(session["search_results"]) == 0:
+    if stopped:
         session["error"] = _no_match_message(session["parsed"])
         return session
 
@@ -237,16 +260,60 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             session["selected_item"],
             session["search_results"],
         )
+        trace.step(
+            "compare_price",
+            inputs={
+                "selected": session["selected_item"],
+                "others": len(session["search_results"]),
+            },
+            returned=session["price_comparison"],
+            note="branch: a cheaper listing exists",
+        )
+    else:
+        trace.step(
+            "price branch",
+            inputs={"selected": session["selected_item"]},
+            returned="no cheaper listing in the results",
+            note="branch: skip compare_price",
+        )
 
-    session["outfit_suggestion"] = suggest_outfit(
-        session["selected_item"],
-        session["wardrobe"],
+    outfit_inputs = {
+        "new_item": session["selected_item"],
+        "wardrobe_items": len(session["wardrobe"].get("items") or []),
+    }
+    try:
+        session["outfit_suggestion"] = suggest_outfit(
+            session["selected_item"],
+            session["wardrobe"],
+        )
+    except ModelUnavailable as exc:
+        session["error"] = _model_down(exc)
+        trace.step("suggest_outfit", inputs=outfit_inputs, note=session["error"])
+        return session
+    trace.step(
+        "suggest_outfit",
+        inputs=outfit_inputs,
+        returned=session["outfit_suggestion"],
     )
 
-    _round()
-    session["fit_card"] = create_fit_card(
-        session["outfit_suggestion"],
-        session["selected_item"],
+    card_inputs = {
+        "outfit": session["outfit_suggestion"],
+        "new_item": session["selected_item"],
+    }
+    try:
+        _round()
+        session["fit_card"] = create_fit_card(
+            session["outfit_suggestion"],
+            session["selected_item"],
+        )
+    except ModelUnavailable as exc:
+        session["error"] = _model_down(exc)
+        trace.step("create_fit_card", inputs=card_inputs, note=session["error"])
+        return session
+    trace.step(
+        "create_fit_card",
+        inputs=card_inputs,
+        returned=session["fit_card"],
     )
     _remember(session["selected_item"])
     return session

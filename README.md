@@ -66,7 +66,7 @@ Each listing has `id`, `title`, `description`, `category`, `style_tags`, `size`,
 
 Size match is on tokens, not a substring. Split both sizes on anything that is not a letter or a digit, keeping decimals like `8.5` as one token. A letter size (`S`, `M`, `L`, `XL`, and the same with an extra `X`) matches when that token is present, so `M` matches `S/M` and `M/L`, `S` does not match `US 9`, and `L` does not match `XL`. A number under 20, or any number with a decimal, is a shoe size and matches that number token only, so `8` matches `US 8` and not `US 8.5`. A number 20 or above is a waist: look for the token `W` plus that number, so `30` and `W30` both match `W30 L30`. `One Size` matches only a request for one size. The list cap is `config.SEARCH_RESULT_LIMIT`, which is 10.
 
-Score the listings that pass the filters by keyword overlap with `description`. Ignore words shorter than two letters and the words `a`, `an`, `the`, `and`, `or`, `for`, `in`, `of`, `with`, `under`, `size`. A hit in `title` or `style_tags` is 3, a hit in `description` is 2, and a hit in `category`, `colors`, or `brand` is 1. A hit means the keyword equals a token in that field, compared in lowercase. Drop anything that scores 0. Sort by score descending, then `price` ascending.
+Score the listings that pass the filters by keyword overlap with `description`. Ignore words shorter than two letters and the words `a`, `an`, `the`, `and`, `or`, `for`, `in`, `of`, `with`, `under`, `size`. A hit in `title` or `style_tags` is 3, a hit in `description` is 2, and a hit in `category`, `colors`, or `brand` is 1. A hit means the keyword equals a token in that field, compared in lowercase. Two shopper words also count as the word the listings use: `shirt` counts as `tee`, and `old` counts as `vintage`. Drop anything that scores 0. Sort by score descending, then `price` ascending.
 
 ### `suggest_outfit`
 
@@ -450,21 +450,23 @@ Model unavailable (one character of the key changed, then restored): The model c
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** In `tools.py::_keywords`, two shopper words now also count as the word the listings use. `shirt` counts as `tee`. `old` counts as `vintage`. Nothing else in the scorer changed.
 
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** The diagnosis did not miss a target. It named the failure mode criterion 1 was written for and never hit: a loose phrasing such as `old band shirt`. Before this change that query returned five items, and the first was the Vintage Polo Shirt at $18, because `shirt` matched the polo and `old` matched nothing. The Vintage Band Tee only scored the word `band`.
 
 ### Run Log — After
 
+`python run_eval.py --label after` wrote `results/run_2026-10-22_0241_after.md` (`run_eval.py::write_report`, cache off, temperature 0.9). Same scenarios as the before log. Scored the same way.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Full three-tool run returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Empty search stops before suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected id is the id passed on | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit cards keep price, platform, and a unique opening | 5/5 facts, 4/5 unique openings | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. under $30 never returns a price over 30 | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
+**Did it help, and how do I know:** It helped the phrasing the diagnosis named, and it did not move the five targets. Those queries never use `shirt` or `old`, so their search lists stayed the same and every criterion is still MET (5/5), the same as the before log. `search_listings("old band shirt")` in `tools.py` now returns the Vintage Band Tee — Faded Grey ($19, `lst_033`) first, then the 2003 Tour Bootleg tee. The polo shirt is fourth.
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->

@@ -31,6 +31,13 @@ _LETTER_SIZES = {"XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"}
 _STOPWORDS = {
     "a", "an", "the", "and", "or", "for", "in", "of", "with", "under", "size",
 }
+# Shopper words the listings spell differently. "old band shirt" was ranking a
+# polo first, because "shirt" never counted as "tee" and "old" never counted
+# as "vintage".
+_QUERY_ALIASES = {
+    "shirt": "tee",
+    "old": "vintage",
+}
 
 
 def _tokens(text: str) -> list[str]:
@@ -51,10 +58,15 @@ def _keyword_tokens(value) -> set[str]:
 
 def _keywords(description: str) -> list[str]:
     words = []
+    seen = set()
     for word in _keyword_tokens(description):
         if len(word) < 2 or word in _STOPWORDS:
             continue
-        words.append(word)
+        for token in (word, _QUERY_ALIASES.get(word)):
+            if not token or token in seen or token in _STOPWORDS:
+                continue
+            seen.add(token)
+            words.append(token)
     return words
 
 

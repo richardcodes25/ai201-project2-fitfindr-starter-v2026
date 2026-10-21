@@ -231,6 +231,14 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         "max_price": parsed["max_price"],
     })
     stopped = len(session["search_results"]) == 0
+    if stopped:
+        search_note = "branch: empty, stopping"
+    else:
+        first = session["search_results"][0]
+        prices = ", ".join(str(item.get("price")) for item in session["search_results"])
+        search_note = (
+            f"branch: results, continue; first id {first.get('id')}; prices {prices}"
+        )
     trace.step(
         "search_listings (via MCP)",
         inputs={
@@ -239,7 +247,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             "max_price": parsed["max_price"],
         },
         returned=session["search_results"],
-        note="branch: empty, stopping" if stopped else "branch: results, continue",
+        note=search_note,
     )
 
     # Branch on the list that was just stored, not on a local variable.
@@ -267,14 +275,20 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 "others": len(session["search_results"]),
             },
             returned=session["price_comparison"],
-            note="branch: a cheaper listing exists",
+            note=(
+                "branch: a cheaper listing exists; "
+                f"selected id {session['selected_item'].get('id')}"
+            ),
         )
     else:
         trace.step(
             "price branch",
             inputs={"selected": session["selected_item"]},
             returned="no cheaper listing in the results",
-            note="branch: skip compare_price",
+            note=(
+                "branch: skip compare_price; "
+                f"selected id {session['selected_item'].get('id')}"
+            ),
         )
 
     outfit_inputs = {
@@ -294,6 +308,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         "suggest_outfit",
         inputs=outfit_inputs,
         returned=session["outfit_suggestion"],
+        note=f"new_item id {session['selected_item'].get('id')}",
     )
 
     card_inputs = {
@@ -314,6 +329,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         "create_fit_card",
         inputs=card_inputs,
         returned=session["fit_card"],
+        note=f"new_item id {session['selected_item'].get('id')}",
     )
     _remember(session["selected_item"])
     return session

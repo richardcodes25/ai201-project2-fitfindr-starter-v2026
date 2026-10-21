@@ -257,19 +257,92 @@ $ python app.py ask 'oversized flannel shirt'
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
+`python run_eval.py --label before` wrote `results/run_2026-10-22_0219_before.md` (`run_eval.py::write_report`, cache off, temperature 0.9). Each row below is scored from that file. The loop is `agent.py::run_agent`. Fit cards come from `tools.py::create_fit_card`.
+
+For criteria 1–3, a try is one repeat of that scenario. For criterion 4, a try is one round of the five listings. For criterion 5, a try is one round of the five `under $30` queries. Openings on the model criteria were not the same from try to try.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Full three-tool run returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Empty search stops before suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected id is the id passed on | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit cards keep price, platform, and a unique opening | 5/5 facts, 4/5 unique openings | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. under $30 never returns a price over 30 | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+**Real output from one try**, pasted as text, naming the file and function that produced it. All of it is from `results/run_2026-10-22_0219_before.md`, written by `run_eval.py::write_report`.
+
+**1.** `agent.py::run_agent` on `vintage graphic tee under $30`, try 1. The trace shows search, `suggest_outfit`, and `create_fit_card`. The fit card is from `tools.py::create_fit_card`:
 
 ```
+[1] search_listings (via MCP)
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+      →    branch: results, continue; first id lst_002; prices 18.0, 19.0, 24.0, 26.0, 15.0, 12.0, 14.0, 16.0, 18.0, 20.0
+[3] suggest_outfit
+      →    new_item id lst_002
+[4] create_fit_card
+      →    new_item id lst_002
 
+Still recovering from the fact that I only paid 18 for this little pastel dream. I just scored this exact Y2K Baby Tee — Butterfly Print on depop and the pink and purple glitter graphic is giving major 2003 mall-rat energy. Honestly can't wait to grunge it down with an oversized flannel and some beat-up combat boots.
+```
+
+**2.** `agent.py::run_agent` on `designer ballgown size XXS under $5`, try 1. The trace stops after search. `suggest_outfit` is not called:
+
+```
+- stopped early: yes — Nothing matched 'designer ballgown' in size XXS under $5. Raise the price, drop the size, or change the words.
+- selected_item: (none)
+- search_results: 0
+
+[1] search_listings (via MCP)
+      out: [] (empty)
+      →    branch: empty, stopping
+```
+
+**3.** `agent.py::run_agent` on `suede chelsea boots`, try 1. The first search id, the selected id, and both `new_item` ids are `lst_028`:
+
+```
+- selected_item: Suede Chelsea Boots — Tan ($44.0, poshmark)
+- search_results: 1
+[1] search_listings (via MCP)
+      →    branch: results, continue; first id lst_028; prices 44.0
+[2] price branch
+      →    branch: skip compare_price; selected id lst_028
+[3] suggest_outfit
+      →    new_item id lst_028
+[4] create_fit_card
+      →    new_item id lst_028
+```
+
+**4.** `tools.py::create_fit_card`, try 1 of each of the five listings. Each card contains that item's whole-dollar price and platform. The five first sentences are different:
+
+```
+Literal heart eyes for this little thrift score I just listed on depop. Snagged this Y2K Baby Tee — Butterfly Print for just 18 and the pastel pink and purple butterfly graphics give off the ultimate nostalgic 2000s mall-rat energy. Throwing it on with some baggy straight-leg jeans and suede chelsea boots for the easiest coffee run fit ever.
+
+Found my ultimate 70s autumn uniform on depop and I am never taking it off. These Corduroy Wide-Leg Pants — Rust were only 32 and they fit like an absolute dream. I’m styling them with an unbuttoned plaid flannel over a butterfly baby tee and my favorite tan Chelsea boots for the coziest, most nostalgic vibe.
+
+Still pinching myself over finding these on depop for just 55! Total 90s mall goth energy, especially paired with an oversized red plaid flannel and dark wash baggy jeans. My inner teenager is screaming.
+
+Finally got my hands on the ultimate retro streetwear piece for just $45 on poshmark. This 90s Track Jacket — Navy/White Stripe looks so good thrown over a little baby tee and wide-leg cords. It’s got that perfect crunchy, lightweight nylon feel that makes it impossible not to wear every single day.
+
+Found the ultimate dad jacket on thredUp and I am never taking it off. This Vintage Windbreaker — Color Block Purple/Teal was only 40 and gives off the best early '90s ski trip energy. I'm totally throwing it on over some rust corduroys and beat-up boots for the weekend.
+```
+
+**5.** `agent.py::run_agent`, try 1, in this order: `vintage graphic tee under $30`, `leather belt under $30`, `silk slip dress under $30`, `low-rise cargo pants under $30`, `henley burgundy under $30`. Every list is non-empty and every price is at or below 30:
+
+```
+- search_results: 10
+      →    branch: results, continue; first id lst_002; prices 18.0, 19.0, 24.0, 26.0, 15.0, 12.0, 14.0, 16.0, 18.0, 20.0
+
+- search_results: 1
+      →    branch: results, continue; first id lst_014; prices 12.0
+
+- search_results: 2
+      →    branch: results, continue; first id lst_013; prices 30.0, 28.0
+
+- search_results: 2
+      →    branch: results, continue; first id lst_011; prices 27.0, 20.0
+
+- search_results: 1
+      →    branch: results, continue; first id lst_020; prices 16.0
 ```
 
 ---
